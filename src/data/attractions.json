@@ -1,0 +1,36 @@
+[
+    {
+        "name": "Amphitheaters",
+        "id": "56aa371be4b08b9a8d5734db"
+    }, {
+        "name": "Casinoes",
+        "id": "4bf58dd8d48988d17c941735"
+    }, {
+        "name": "Local Events",
+        "id": "4d4b7105d754a06373d8125"
+    }, {
+        "name": "Museums",
+        "id": "4bf58dd8d48988d181941735"
+    }, {
+        "name": "Local Food",
+        "id": "4d4b7105d754a06374d81259"
+    }, {
+        "name": "Night Life",
+        "id": "4d4b7105d754a06376d81259"
+    }, {
+        "name": "Castles",
+        "id": "50aaa49e4b90af0d42d5de11"
+    }, {
+        "name": "Skiing",
+        "id": "4bf58dd8d48988d1e9941735"
+    }, {
+        "name": "Libraries",
+        "id": "4bf58dd8d48988d12f941735"
+    }, {
+        "name": "Wineries",
+        "id": "4bf58dd8d48988d14b941735"
+    }, {
+        "name": "Spa",
+        "id": "4bf58dd8d48988d1ed941735"
+    }
+]

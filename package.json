@@ -1,0 +1,50 @@
+{
+    "name": "deadlock",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+        "@babel/runtime": "^7.5.5",
+        "antd": "^3.22.0",
+        "concurrently": "^4.1.2",
+        "cors": "^2.8.5",
+        "express": "^4.17.1",
+        "express-history-api-fallback": "^2.2.1",
+        "fetch": "^1.1.0",
+        "is-mobile": "^2.1.0",
+        "lodash": "^4.17.15",
+        "nodemon": "^1.19.1",
+        "rc-collapse": "^1.11.6",
+        "react": "^16.9.0",
+        "react-background-slider": "^1.2.0",
+        "react-dom": "^16.9.0",
+        "react-qr-svg": "^2.2.1",
+        "react-router-dom": "^5.0.1",
+        "react-scripts": "3.1.1",
+        "styled-components": "^4.3.2",
+        "unsplash-js": "^5.0.0"
+    },
+    "scripts": {
+        "build": "react-scripts build",
+        "start": "react-scripts start",
+        "test": "react-scripts test",
+        "eject": "react-scripts eject"
+    },
+    "eslintConfig": {
+        "extends": "react-app"
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "node-sass": "^4.12.0"
+    }
+}
