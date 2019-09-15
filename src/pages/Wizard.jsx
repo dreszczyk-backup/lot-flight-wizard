@@ -46,7 +46,7 @@ const PanelWrapper = styled.div`
     justify-content: center;
     border-radius: 10px;
     background: linear-gradient(180deg,rgba(255,255,255,0.9) 31%,rgba(255,255,255,0.5) 100%);
-    backdrop-filter: blur(10px) saturate(300%);
+    backdrop-filter: blur(20px) saturate(300%);
     box-shadow: 0 70px 80px rgba(0, 0, 0, 0.4);
     position: absolute;
     &.panel {
@@ -102,6 +102,7 @@ class Wizard extends Component {
         otherVenues: [],
         adultsCount: 1,
         LOTToken: '',
+        actualOffers: [],
         backgroundPhotos: [{
             "urls": {
                 "raw": "https://images.unsplash.com/photo-1544413695-46b2aa55efeb?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjkxNTIzfQ",
@@ -192,7 +193,7 @@ class Wizard extends Component {
             })
         })
         .catch(function (error) {
-            alert('Foursquare API error!', error);
+            console.error('Foursquare API error!', error);
         });
     }
 
@@ -214,7 +215,7 @@ class Wizard extends Component {
             
         })
         .catch(function (error) {
-            alert('Foursquare API error!', error);
+            console.error('Foursquare API error!', error);
         });
     }
 
@@ -247,7 +248,7 @@ class Wizard extends Component {
             headers: {
                 'content-type': 'application/json',
                 'X-Api-Key': '9YFNNKS31u9gCFKPetPWdAAjEXnED0B3K18AeYgg',
-                'Authorization': this.state.LOTToken,
+                'Authorization': `Bearer ${this.state.LOTToken}`,
             },
             data: {
                 params: {
@@ -264,8 +265,9 @@ class Wizard extends Component {
             url: 'https://api.lot.com/flights-dev/v2/booking/availability',
         };
         axios(options).then((response) => {
-            console.log('response', response);
-            
+            this.setState({
+                actualOffers: response.data.data,
+            });
         });
     }
 
@@ -370,6 +372,42 @@ class Wizard extends Component {
             </Card>
         </Col>
     )
+
+    mapOffer = ([offer]) => {
+        console.log(offer);
+        return (
+            <Row gutter={16} style={{ marginTop: '10px' }}>
+                <Col span={7}>
+                    <Card title={`${offer.totalPrice.price}${offer.totalPrice.currency}`} bordered={false}>
+                        <small>
+                            {Math.round(Number(offer.totalPrice.basePrice))}{offer.totalPrice.currency} + {Math.round(Number(offer.totalPrice.tax))}{offer.totalPrice.currency}
+                        </small>
+                    </Card>
+                </Col>
+                <Col span={6}>
+                    {offer.outbound && offer.outbound.segments.map(segment => (
+                        <Card title={`${segment.departureAirport} -> ${segment.arrivalAirport}`} bordered={false}>
+                            {segment.duration} minut
+                        </Card>
+                    ))}
+                </Col>
+                <Col span={6}>
+                    {offer.inbound && offer.inbound.segments.map(segment => (
+                        <Card title={`${segment.departureAirport} -> ${segment.arrivalAirport}`} bordered={false}>
+                            {segment.duration} minut
+                        </Card>
+                    ))}
+                </Col>
+                <Col span={5}>
+                    <Card title='buy tickets' bordered={false}>
+                        <a href={offer.url} rel="noopener noreferrer" target="_blank">
+                            <Icon type="shopping-cart" />
+                        </a>
+                    </Card>
+                </Col>
+            </Row>
+        )
+    }
 
     range(start, end) {
         const result = [];
@@ -593,7 +631,7 @@ class Wizard extends Component {
                                 <Checkbox
                                     style={{ margin: '15px'}}
                                     onChange={this.onCheckRoundTrip}
-                                    value={this.state.roundTripChecked}
+                                    checked={this.state.roundTripChecked}
                                 >
                                     Round trip
                                 </Checkbox>
@@ -605,6 +643,13 @@ class Wizard extends Component {
                                 >
                                     search
                                 </Button>
+                            </div>
+                            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                {
+                                    this.state.actualOffers.length
+                                    ? this.state.actualOffers.map(this.mapOffer)
+                                    : ''
+                                }
                             </div>
                         </div>
                     </ScrollWrapper>
