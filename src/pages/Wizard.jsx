@@ -6,6 +6,7 @@ import places from '../data/places.json';
 import Unsplash, { toJson } from 'unsplash-js';
 import BackgroundSlider from 'react-background-slider';
 import moment from 'moment';
+import { WhisperSpinner } from "react-spinners-kit";
 import {
     filter,
     isEmpty,
@@ -62,6 +63,11 @@ const PanelWrapper = styled.div`
     }
 `;
 
+const LoaderWrapper = styled.div`
+    padding: 20px;
+    margin: 0 auto;
+`;
+
 const Logo = styled.img`
     width: 200px;
     height: auto;
@@ -92,6 +98,7 @@ const CTAButton = styled(Button)`
 class Wizard extends Component {
     state = {
         step: 'START',
+        loading: false,
         attractions,
         places,
         selectedPlace: undefined,
@@ -146,6 +153,7 @@ class Wizard extends Component {
         }],
     }
 
+
     componentDidUpdate(prevProps, prevState) {
         console.log(this.state);
         if (prevState.selectedPlace !== this.state.selectedPlace) {
@@ -174,10 +182,13 @@ class Wizard extends Component {
     }
 
     getAuth() {
-        return 'client_id=KYPYMMKZMVNIDXKPIPIBECPBCOA5G1EOQ3NH5X1TEXDRX2ZS&client_secret=SRQBC0M5SP2L003IBZU4UTCYP413UCYKHA3JMBR5URHHSN5M&v=20190915';
+        return 'client_id=AA5R5Q2OPCLW4A2GUGSAPFQ3KOJYXAFHLXIOYB5POSDNNEEZ&client_secret=0NFS1NLJ2YN2AABCCOUTIGYWCT0CRZU1WOIU3O05TAUF4OSW&v=20190915';
     }
 
     getAttractionVenues = () => {
+        this.setState({
+            loading: true,
+        });
         axios.get(
             `https://api.foursquare.com/v2/venues/search?near=${encodeURIComponent(this.state.selectedPlaceName)}&limit=9&categoryId=${this.state.selectedAttraction}&${this.getAuth()}`
         ).then(({ data: { response } }) => {
@@ -187,9 +198,12 @@ class Wizard extends Component {
                 `https://api.foursquare.com/v2/venues/${venue.id}?${this.getAuth()}`
             ));
             Promise.all(venuesDetailsPromises).then(attractionVenues => {
-                this.setState({ attractionVenues: attractionVenues.map(response => ({
-                    ...response.data.response.venue,
-                })) });
+                this.setState({
+                    attractionVenues: attractionVenues.map(response => ({
+                        ...response.data.response.venue,
+                    })),
+                    loading: false,
+                });
             })
         })
         .catch(function (error) {
@@ -198,7 +212,10 @@ class Wizard extends Component {
     }
 
     getOtherVenues = () => {
-        axios.post(
+        this.setState({
+            loading: true,
+        });
+        axios.get(
             `https://api.foursquare.com/v2/venues/explore?near=${encodeURIComponent(this.state.selectedPlaceName)}&limit=9&&${this.getAuth()}`
         ).then(({ data: { response } }) => {
             const { groups } = response;
@@ -208,9 +225,12 @@ class Wizard extends Component {
                 `https://api.foursquare.com/v2/venues/${venue.id}?${this.getAuth()}`
             ));
             Promise.all(groupsDetailsPromises).then(otherVenues => {
-                this.setState({ otherVenues: otherVenues.map(response => ({
+                this.setState({
+                    otherVenues: otherVenues.map(response => ({
                     ...response.data.response.venue,
-                })) });
+                    })),
+                    loading: false,
+                });
             })
             
         })
@@ -243,6 +263,9 @@ class Wizard extends Component {
     }
 
     getFlights = () => {
+        this.setState({
+            loading: true,
+        });
         const options = {
             method: 'POST',
             headers: {
@@ -266,6 +289,7 @@ class Wizard extends Component {
         };
         axios(options).then((response) => {
             this.setState({
+                loading: false,
                 actualOffers: response.data.data,
             });
         });
@@ -540,6 +564,7 @@ class Wizard extends Component {
                                 <b>{this.state.selectedAttractionName}</b> in {this.state.selectedPlaceName}
                             </Title>
                         </p>
+                        {this.state.loading && <LoaderWrapper><WhisperSpinner loading={true} /></LoaderWrapper>}
                         {!!this.state.attractionVenues.length && (
                             chunk(this.state.attractionVenues, 3).map((chunk, index) => this.mapChunk(chunk, index, 'attractionVenues'))
                         )}
@@ -645,6 +670,7 @@ class Wizard extends Component {
                                 </Button>
                             </div>
                             <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                {this.state.loading && <LoaderWrapper><WhisperSpinner loading={true} /></LoaderWrapper>}
                                 {
                                     this.state.actualOffers.length
                                     ? this.state.actualOffers.map(this.mapOffer)
