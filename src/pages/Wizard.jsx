@@ -1,6 +1,6 @@
 import React, { Component, Fragment } from 'react';
 import styled from 'styled-components';
-import { Select, Typography, Button, Icon } from 'antd';
+import { Select, Typography, Button, Icon, Card, Col, Row, Tag } from 'antd';
 import attractions from '../data/attractions.json';
 import places from '../data/places.json';
 import Unsplash, { toJson } from 'unsplash-js';
@@ -8,8 +8,11 @@ import BackgroundSlider from 'react-background-slider';
 import {
     filter,
     isEmpty,
+    chunk,
 } from 'lodash';
-const fetchUrl = require("fetch").fetchUrl;
+
+const axios = require('axios');
+const placeHolderPhoto = require('../static/500x300.png');
 
 const LOTLogo = require('../static/logo_lot_en.svg')
 
@@ -64,7 +67,16 @@ const Logo = styled.img`
 `;
 
 const ScrollWrapper = styled.div`
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+`;
+
+const BackIcon = styled(Icon)`
+    font-size: 20px;
+    margin-right: 20px;
+    opacity: 0.5;
+    position: relative;
+    top: -5px;
 `;
 
 class Wizard extends Component {
@@ -76,6 +88,8 @@ class Wizard extends Component {
         selectedPlaceName: undefined,
         selectedPlaceDescription: undefined,
         selectedAttraction: undefined,
+        attractionVenues: [],
+        otherVenues: [],
         backgroundPhotos: [{
             "urls": {
                 "raw": "https://images.unsplash.com/photo-1544413695-46b2aa55efeb?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjkxNTIzfQ",
@@ -121,32 +135,73 @@ class Wizard extends Component {
 
     componentDidUpdate(prevProps, prevState) {
         if (prevState.selectedPlace !== this.state.selectedPlace) {
-            // unsplash.search.photos(`${placeName} city`, 1, 5)
-            //     .then(toJson)
-            //     .then(({ results }) => {
-            //         this.setState({
-            //             backgroundPhotos: results,
-            //         })
-            //     });
+            unsplash.search.photos(`${this.state.selectedPlaceName} city`, 1, 5)
+                .then(toJson)
+                .then(({ results }) => {
+                    this.setState({
+                        backgroundPhotos: results,
+                    })
+                });
         }
         if (prevState.step !== this.state.step && this.state.step === 'INFO') {
-            fetchUrl(
-                `https://api.foursquare.com/v2/venues/search?near=${this.state.selectedPlaceName}&categoriId=${this.state.selectedAttraction}&client_id=KYPYMMKZMVNIDXKPIPIBECPBCOA5G1EOQ3NH5X1TEXDRX2ZS&client_secret=SQJYJ44OGKPK34C5CI4ISHSBF3Y0XMN0ZUKMR2IVGH0R3RA0&v=20190915`,
-                { method: 'GET' },
-                (error, meta, body) => {
-                    if (body) {
-                        console.log(body.toString());
-                    } else {
-                        console.log('no body');
-                        
-                    }
-                }
-            )
+            this.getAttractionVenues();
+            this.getOtherVenues();
+        }
+        if (prevState.step !== this.state.step && this.state.step !== 'INFO') {
+            this.setState({
+                attractionVenues: [],
+            })
         }
     }
 
     componentDidMount() {
         console.log(this.state)
+    }
+
+    getAuth() {
+        return 'client_id=KYPYMMKZMVNIDXKPIPIBECPBCOA5G1EOQ3NH5X1TEXDRX2ZS&client_secret=SRQBC0M5SP2L003IBZU4UTCYP413UCYKHA3JMBR5URHHSN5M&v=20190915';
+    }
+
+    getAttractionVenues = () => {
+        axios.get(
+            `https://api.foursquare.com/v2/venues/search?near=${encodeURIComponent(this.state.selectedPlaceName)}&limit=9&categoryId=${this.state.selectedAttraction}&${this.getAuth()}`
+        ).then(({ data: { response } }) => {
+            const { venues } = response;
+            this.setState({ attractionVenues: venues });
+            const venuesDetailsPromises = venues.map(venue => axios.get(
+                `https://api.foursquare.com/v2/venues/${venue.id}?${this.getAuth()}`
+            ));
+            Promise.all(venuesDetailsPromises).then(attractionVenues => {
+                this.setState({ attractionVenues: attractionVenues.map(response => ({
+                    ...response.data.response.venue,
+                })) });
+            })
+        })
+        .catch(function (error) {
+            alert('Foursquare API error!', error);
+        });
+    }
+
+    getOtherVenues = () => {
+        axios.get(
+            `https://api.foursquare.com/v2/venues/explore?near=${encodeURIComponent(this.state.selectedPlaceName)}&limit=9&&${this.getAuth()}`
+        ).then(({ data: { response } }) => {
+            const { groups } = response;
+            const otherVenues = groups[0].items.map(item => (item.venue));
+            this.setState({ otherVenues });
+            const groupsDetailsPromises = otherVenues.map(venue => axios.get(
+                `https://api.foursquare.com/v2/venues/${venue.id}?${this.getAuth()}`
+            ));
+            Promise.all(groupsDetailsPromises).then(otherVenues => {
+                this.setState({ otherVenues: otherVenues.map(response => ({
+                    ...response.data.response.venue,
+                })) });
+            })
+            
+        })
+        .catch(function (error) {
+            alert('Foursquare API error!', error);
+        });
     }
 
     updateAttraction = (selectedAttraction) => {
@@ -199,6 +254,39 @@ class Wizard extends Component {
     }
 
     getClassName = (panelName) => this.state.step === panelName ? 'panel active' : 'panel'
+
+    getVenuePhoto = (venue) => `${venue.bestPhoto.prefix}500x300${venue.bestPhoto.suffix}`;
+
+    mapChunk = (chunk, index, chunkName) => (
+        <Row key={`VenueRow${index}_${chunkName}`} gutter={16} style={{ display: 'flex', marginBottom: '30px' }}>
+            {chunk.map(this.mapVenue)}
+        </Row>
+    )
+
+    mapVenue = (venue) => (
+        <Col span={8} key={`VenueCard_${venue.id}`} style={{ display: 'flex' }}>
+            <Card
+                bordered={false}
+                hoverable
+                cover={
+                    !!venue.bestPhoto
+                    ? <img alt={venue.name} src={this.getVenuePhoto(venue)} />
+                    : <img alt={venue.name} src={placeHolderPhoto} />
+                }
+            >
+                <Tag
+                    color={`#${venue.ratingColor ? venue.ratingColor : '585858'}`}
+                    style={{ marginBottom: '15px' }}
+                >
+                    Rating: {venue.rating ? venue.rating : '-'}
+                </Tag>
+                <p>
+                    <b>{venue.name}</b><br/>
+                    {venue.location && venue.location.address}
+                </p>
+            </Card>
+        </Col>
+    )
 
     render() {
         return (
@@ -275,7 +363,7 @@ class Wizard extends Component {
                 </PanelWrapper>
                 <PanelWrapper className={this.getClassName('INFO')} >
                     <Title level={1} style={{ textAlign: 'left', verticalAlign: 'middle' }}>
-                        <Icon type="rollback" onClick={this.goToStart} />
+                        <BackIcon type="left-square" onClick={this.goToStart} style={{ fontSize: '20px', marginRight: '20px', opacity: '0.5'}} />
                         <b>Discover {this.state.selectedPlaceName}</b> with <Logo style={{ display: 'inline', width: '150px', marginBottom: '0' }} src={LOTLogo} />
                     </Title>
                     <p>
@@ -287,34 +375,20 @@ class Wizard extends Component {
                     <ScrollWrapper>
                         <p>
                             <Title level={4}>
-                                <b>{this.state.selectedAttractionName}</b>
+                                <b>{this.state.selectedAttractionName}</b> in {this.state.selectedPlaceName}
                             </Title>
-                            {this.state.selectedPlaceDescription}
                         </p>
+                        {!!this.state.attractionVenues.length && (
+                            chunk(this.state.attractionVenues, 3).map((chunk, index) => this.mapChunk(chunk, index, 'attractionVenues'))
+                        )}
                         <p>
                             <Title level={4}>
-                                <b>{this.state.selectedAttractionName}</b>
+                                <b>Other attractions</b> in {this.state.selectedPlaceName}
                             </Title>
-                            {this.state.selectedPlaceDescription}
                         </p>
-                        <p>
-                            <Title level={4}>
-                                <b>{this.state.selectedAttractionName}</b>
-                            </Title>
-                            {this.state.selectedPlaceDescription}
-                        </p>
-                        <p>
-                            <Title level={4}>
-                                <b>{this.state.selectedAttractionName}</b>
-                            </Title>
-                            {this.state.selectedPlaceDescription}
-                        </p>
-                        <p>
-                            <Title level={4}>
-                                <b>{this.state.selectedAttractionName}</b>
-                            </Title>
-                            {this.state.selectedPlaceDescription}
-                        </p>
+                        {!!this.state.otherVenues.length && (
+                            chunk(this.state.otherVenues, 3).map((chunk, index) => this.mapChunk(chunk, index, 'otherVenues'))
+                        )}
                     </ScrollWrapper>
                 </PanelWrapper>
             </Wrapper>
