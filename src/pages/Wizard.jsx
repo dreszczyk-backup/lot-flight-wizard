@@ -1,10 +1,11 @@
 import React, { Component, Fragment } from 'react';
 import styled from 'styled-components';
-import { Select, Typography, Button, Icon, Card, Col, Row, Tag } from 'antd';
+import { Select, Typography, Button, Icon, Card, Col, Row, Tag, DatePicker, Checkbox } from 'antd';
 import attractions from '../data/attractions.json';
 import places from '../data/places.json';
 import Unsplash, { toJson } from 'unsplash-js';
 import BackgroundSlider from 'react-background-slider';
+import moment from 'moment';
 import {
     filter,
     isEmpty,
@@ -12,6 +13,7 @@ import {
 } from 'lodash';
 
 const axios = require('axios');
+const { RangePicker } = DatePicker;
 const placeHolderPhoto = require('../static/500x300.png');
 
 const LOTLogo = require('../static/logo_lot_en.svg')
@@ -79,6 +81,14 @@ const BackIcon = styled(Icon)`
     top: -5px;
 `;
 
+const CTAButton = styled(Button)`
+    display: block;
+    width: 100%;
+    padding: 30px;
+    height: auto;
+    font-size: 24px;
+`;
+
 class Wizard extends Component {
     state = {
         step: 'START',
@@ -90,6 +100,8 @@ class Wizard extends Component {
         selectedAttraction: undefined,
         attractionVenues: [],
         otherVenues: [],
+        adultsCount: 1,
+        LOTToken: '',
         backgroundPhotos: [{
             "urls": {
                 "raw": "https://images.unsplash.com/photo-1544413695-46b2aa55efeb?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjkxNTIzfQ",
@@ -134,6 +146,7 @@ class Wizard extends Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
+        console.log(this.state);
         if (prevState.selectedPlace !== this.state.selectedPlace) {
             unsplash.search.photos(`${this.state.selectedPlaceName} city`, 1, 5)
                 .then(toJson)
@@ -150,12 +163,13 @@ class Wizard extends Component {
         if (prevState.step !== this.state.step && this.state.step !== 'INFO') {
             this.setState({
                 attractionVenues: [],
+                otherVenues: [],
             })
         }
     }
 
     componentDidMount() {
-        console.log(this.state)
+        this.getLotToken();
     }
 
     getAuth() {
@@ -183,7 +197,7 @@ class Wizard extends Component {
     }
 
     getOtherVenues = () => {
-        axios.get(
+        axios.post(
             `https://api.foursquare.com/v2/venues/explore?near=${encodeURIComponent(this.state.selectedPlaceName)}&limit=9&&${this.getAuth()}`
         ).then(({ data: { response } }) => {
             const { groups } = response;
@@ -201,6 +215,57 @@ class Wizard extends Component {
         })
         .catch(function (error) {
             alert('Foursquare API error!', error);
+        });
+    }
+
+    getLotToken = () => {
+        const options = {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'X-Api-Key': '9YFNNKS31u9gCFKPetPWdAAjEXnED0B3K18AeYgg',
+            },
+            data: {
+                secret_key: '2przp49a52',
+                params: {
+                    market: 'PL',
+                }
+            },
+            url: 'https://api.lot.com/flights-dev/v2/auth/token/get',
+        };
+        axios(options).then((response) => {
+            const LOTToken = response.data.access_token;
+            this.setState({
+                LOTToken,
+            })
+        });
+    }
+
+    getFlights = () => {
+        const options = {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'X-Api-Key': '9YFNNKS31u9gCFKPetPWdAAjEXnED0B3K18AeYgg',
+                'Authorization': this.state.LOTToken,
+            },
+            data: {
+                params: {
+                    origin: [this.state.selectedDeparturePlace],
+                    destination: [this.state.selectedPlace],
+                    departureDate: [this.state.departureDate],
+                    returnDate: this.state.roundTripChecked ? this.state.comebackDate : undefined,
+                    cabinClass: 'E',
+                    market: 'PL',
+                    tripType: this.state.roundTripChecked ? 'R' : 'O',
+                    adt: this.state.adultsCount,
+                },
+            },
+            url: 'https://api.lot.com/flights-dev/v2/booking/availability',
+        };
+        axios(options).then((response) => {
+            console.log('response', response);
+            
         });
     }
 
@@ -230,6 +295,18 @@ class Wizard extends Component {
         })
     }
 
+    updateDeparturePlace = (selectedDeparturePlace) => {
+        this.setState({
+            selectedDeparturePlace,
+        })
+    }
+
+    updateAdultsCount = (adultsCount) => {
+        this.setState({
+            adultsCount,
+        })
+    }
+
     goToStart = () => {
         this.setState({
             step: 'START'
@@ -239,6 +316,12 @@ class Wizard extends Component {
     goToInfos = () => {
         this.setState({
             step: 'INFO'
+        });
+    }
+
+    goToBooking = () => {
+        this.setState({
+            step: 'BOOKING'
         });
     }
 
@@ -287,6 +370,47 @@ class Wizard extends Component {
             </Card>
         </Col>
     )
+
+    range(start, end) {
+        const result = [];
+        for (let i = start; i < end; i++) {
+            result.push(i);
+        }
+        return result;
+    }
+
+    disabledDate = (current) => {
+        // Can not select days before today and today
+        return current && current < moment().endOf('day');
+    }
+
+    disabledRangeTime = (_, type) => {
+        if (type === 'start') {
+            return {
+                disabledHours: () => this.range(0, 60).splice(4, 20),
+                disabledMinutes: () => this.range(30, 60),
+                disabledSeconds: () => [55, 56],
+            };
+        }
+        return {
+            disabledHours: () => this.range(0, 60).splice(20, 4),
+            disabledMinutes: () => this.range(0, 31),
+            disabledSeconds: () => [55, 56],
+        };
+    }
+
+    updateFlightTime = ([departureDate, comebackDate]) => {
+        this.setState({
+            departureDate: departureDate.format('DDMMYYYY'),
+            comebackDate: comebackDate.format('DDMMYYYY'),
+        })
+    }
+
+    onCheckRoundTrip = (e) => {
+        this.setState({
+            roundTripChecked: e.target.checked
+        })
+    }
 
     render() {
         return (
@@ -389,6 +513,100 @@ class Wizard extends Component {
                         {!!this.state.otherVenues.length && (
                             chunk(this.state.otherVenues, 3).map((chunk, index) => this.mapChunk(chunk, index, 'otherVenues'))
                         )}
+                        <p>
+                            <Title level={4}>
+                                Like what you see? <b>Fly with us!</b>
+                            </Title>
+                        </p>
+                        <CTAButton type="primary" onClick={this.goToBooking}>
+                            Book a flight
+                        </CTAButton>
+                    </ScrollWrapper>
+                </PanelWrapper>
+                <PanelWrapper className={this.getClassName('BOOKING')} >
+                    <Title level={1} style={{ textAlign: 'left', verticalAlign: 'middle' }}>
+                        <BackIcon type="left-square" onClick={this.goToInfos} style={{ fontSize: '20px', marginRight: '20px', opacity: '0.5'}} />
+                        <b>Discover {this.state.selectedPlaceName}</b> with <Logo style={{ display: 'inline', width: '150px', marginBottom: '0' }} src={LOTLogo} />
+                    </Title>
+                    <ScrollWrapper>
+                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'row' }}>
+                                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                    <Title level={4}>
+                                        Adults count
+                                    </Title>
+                                    <Select
+                                        value={this.state.adultsCount}
+                                        onChange={this.updateAdultsCount}
+                                        placeholder="Adults count"
+                                    >
+                                        <Option value='1'>1</Option>
+                                        <Option value='2'>2</Option>
+                                        <Option value='3'>3</Option>
+                                        <Option value='4'>4</Option>
+                                        <Option value='5'>5</Option>
+                                        <Option value='6'>6</Option>
+                                        <Option value='7'>7</Option>
+                                        <Option value='8'>8</Option>
+                                        <Option value='9'>9</Option>
+                                    </Select>
+                                </div>
+                                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                    <Title level={4}>
+                                        Pick your departure airport
+                                    </Title>
+                                    <Select
+                                        value={this.state.selectedDeparturePlace}
+                                        onChange={this.updateDeparturePlace}
+                                        style={{ width: '300px' }}
+                                        placeholder="Departure airport"
+                                        optionFilterProp="children"
+                                        showSearch
+                                    >
+                                        {this.state.places.map(place => (
+                                            <Option
+                                                key={`DeparturePlaceOption_${place.id}`}
+                                                value={place.id}
+                                            >
+                                                {place.name}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </div>
+                                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                    <Title level={4}>
+                                        Pick your flight time frame
+                                    </Title>
+                                    <RangePicker
+                                        disabledDate={this.disabledDate}
+                                        disabledTime={this.disabledRangeTime}
+                                        showTime={{
+                                            hideDisabledOptions: true,
+                                            defaultValue: [moment('00:00:00', 'HH:mm:ss'), moment('11:59:59', 'HH:mm:ss')],
+                                        }}
+                                        format="YYYY-MM-DD"
+                                        onChange={this.updateFlightTime}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+                                <Checkbox
+                                    style={{ margin: '15px'}}
+                                    onChange={this.onCheckRoundTrip}
+                                    value={this.state.roundTripChecked}
+                                >
+                                    Round trip
+                                </Checkbox>
+                                <Button
+                                    type="primary"
+                                    size="large"
+                                    icon="search"
+                                    onClick={this.getFlights}
+                                >
+                                    search
+                                </Button>
+                            </div>
+                        </div>
                     </ScrollWrapper>
                 </PanelWrapper>
             </Wrapper>
