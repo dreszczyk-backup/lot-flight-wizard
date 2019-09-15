@@ -564,7 +564,7 @@ class Wizard extends Component {
                                 <b>{this.state.selectedAttractionName}</b> in {this.state.selectedPlaceName}
                             </Title>
                         </p>
-                        {this.state.loading && <LoaderWrapper><WhisperSpinner loading={true} /></LoaderWrapper>}
+                        {this.state.loading && <LoaderWrapper><WhisperSpinner backColor="#252668" frontColor="#252668" loading={true} /></LoaderWrapper>}
                         {!!this.state.attractionVenues.length && (
                             chunk(this.state.attractionVenues, 3).map((chunk, index) => this.mapChunk(chunk, index, 'attractionVenues'))
                         )}
@@ -670,7 +670,7 @@ class Wizard extends Component {
                                 </Button>
                             </div>
                             <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-                                {this.state.loading && <LoaderWrapper><WhisperSpinner loading={true} /></LoaderWrapper>}
+                                {this.state.loading && <LoaderWrapper><WhisperSpinner backColor="#252668" frontColor="#252668" loading={true} /></LoaderWrapper>}
                                 {
                                     this.state.actualOffers.length
                                     ? this.state.actualOffers.map(this.mapOffer)
